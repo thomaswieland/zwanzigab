@@ -8,6 +8,8 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // Block access to sensitive files
+// Note: We serve from __dirname to keep the simple structure of the project
+// (all game files in root), but block access to server-side and configuration files
 app.use((req, res, next) => {
     const blockedPaths = ['/package.json', '/package-lock.json', '/server.js', '/.git', '/.gitignore', '/node_modules'];
     if (blockedPaths.some(path => req.path.startsWith(path))) {
