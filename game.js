@@ -75,7 +75,7 @@ class ZwanzigAbGame {
         this.players.forEach(p => {
             p.hand = [];
             p.tricksWon = 0;
-            p.isPlaying = undefined; // Will be set during decide phase
+            p.isPlaying = null; // Will be set during decide phase
         });
         
         this.tricksWon = this.players.map(() => 0);
@@ -158,7 +158,7 @@ class ZwanzigAbGame {
         const allDecided = this.players.every((p, i) => {
             const trumpChooser = i === trumpChooserIndex;
             const mustPlay = trumpChooser || this.trump === 'diamonds';
-            return mustPlay || p.isPlaying !== undefined;
+            return mustPlay || p.isPlaying !== null;
         });
         
         if (allDecided) {
@@ -736,7 +736,7 @@ class GameUI {
         }
         
         const player = this.game.players[this.game.currentPlayerIndex];
-        const exchangeCount = Math.floor(Math.random() * 3); // Random 0-2 cards
+        const exchangeCount = Math.floor(Math.random() * 4); // Random 0-3 cards
         const cardsToExchange = player.hand.slice(0, exchangeCount);
         
         setTimeout(() => {
