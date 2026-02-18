@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Zwanzig ab - Kartenspiel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Setup Screen -->
+        <div id="setup-screen" class="screen active">
+            <div class="container">
+                <h1>Zwanzig ab</h1>
+                <div class="setup-controls">
+                    <label for="player-count">Anzahl Spieler:</label>
+                    <select id="player-count">
+                        <option value="2">2 Spieler</option>
+                        <option value="3">3 Spieler</option>
+                        <option value="4" selected>4 Spieler</option>
+                    </select>
+                    
+                    <div id="player-names">
+                        <input type="text" class="player-name-input" placeholder="Spieler 1" value="Spieler 1">
+                        <input type="text" class="player-name-input" placeholder="Spieler 2" value="Spieler 2">
+                        <input type="text" class="player-name-input" placeholder="Spieler 3" value="Spieler 3">
+                        <input type="text" class="player-name-input" placeholder="Spieler 4" value="Spieler 4">
+                    </div>
+                    
+                    <button id="start-game" class="btn btn-primary">Spiel starten</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="screen">
+            <div class="game-header">
+                <h2>Zwanzig ab</h2>
+                <button id="menu-btn" class="btn btn-small">Menü</button>
+            </div>
+
+            <!-- Scoreboard -->
+            <div id="scoreboard" class="scoreboard"></div>
+
+            <!-- Game Phase Info -->
+            <div id="game-info" class="game-info">
+                <div id="phase-info"></div>
+                <div id="trump-info"></div>
+            </div>
+
+            <!-- Player's Hand -->
+            <div id="player-hand" class="player-hand"></div>
+
+            <!-- Action Area -->
+            <div id="action-area" class="action-area"></div>
+
+            <!-- Trick Area -->
+            <div id="trick-area" class="trick-area"></div>
+
+            <!-- Modal for Trump Selection -->
+            <div id="trump-modal" class="modal">
+                <div class="modal-content">
+                    <h3>Trumpf wählen</h3>
+                    <div id="trump-selection" class="trump-selection">
+                        <button class="trump-btn" data-suit="hearts">♥ Herz</button>
+                        <button class="trump-btn" data-suit="diamonds">♦ Karo</button>
+                        <button class="trump-btn" data-suit="clubs">♣ Kreuz</button>
+                        <button class="trump-btn" data-suit="spades">♠ Pik</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
