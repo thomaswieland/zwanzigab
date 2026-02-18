@@ -1,5 +1,8 @@
 // Zwanzig Ab - Game Logic
 
+// Constants
+const TRICK_COMPLETION_DELAY = 1000; // milliseconds
+
 class Card {
     constructor(suit, rank) {
         this.suit = suit;
@@ -25,8 +28,7 @@ class Card {
     }
 
     getSuitClass() {
-        return this.suit === 'Herz' || this.suit === 'Karo' ? 
-            this.suit.toLowerCase() : '';
+        return this.suit.toLowerCase();
     }
 }
 
@@ -451,7 +453,7 @@ class GameUI {
             // Check if trick is complete
             const activePlayers = this.game.players.filter(p => !p.eliminated);
             if (this.game.currentTrick.length === activePlayers.length) {
-                setTimeout(() => this.completeTrick(), 1000);
+                setTimeout(() => this.completeTrick(), TRICK_COMPLETION_DELAY);
             } else {
                 // Move to next player
                 this.game.getNextPlayer();

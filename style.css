@@ -279,7 +279,7 @@ body {
     margin-top: 5px;
 }
 
-.card.hearts, .card.diamonds {
+.card.herz, .card.karo {
     color: var(--danger-color);
 }
 
