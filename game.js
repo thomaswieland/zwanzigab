@@ -345,6 +345,9 @@ class GameUI {
     constructor(game) {
         this.game = game;
         this.selectedCards = [];
+        this.isOnlineMode = false;
+        this.myPlayerId = null;
+        this.onlineClient = null;
         this.initializeEventListeners();
     }
     
@@ -359,8 +362,11 @@ class GameUI {
         
         document.getElementById('menu-btn').addEventListener('click', () => {
             if (confirm('Zurück zum Hauptmenü? Das Spiel wird beendet.')) {
-                this.showScreen('setup');
+                this.showScreen(this.isOnlineMode ? 'online' : 'mode');
                 this.game.phase = 'setup';
+                if (this.isOnlineMode && this.onlineClient) {
+                    this.onlineClient.leaveRoom();
+                }
             }
         });
         
@@ -460,7 +466,8 @@ class GameUI {
     
     renderPlayerHand() {
         const handDiv = document.getElementById('player-hand');
-        const currentPlayer = this.game.players[0]; // Always show player 0's hand (human player)
+        const myPlayer = this.isOnlineMode ? this.myPlayerId : 0;
+        const currentPlayer = this.game.players[myPlayer]; // Always show my player's hand
         
         handDiv.innerHTML = '<h3>Deine Karten</h3>';
         
@@ -468,21 +475,21 @@ class GameUI {
             return;
         }
         
-        const validCards = this.game.phase === 'play' && this.game.currentPlayerIndex === 0
-            ? this.game.getValidCards(0)
+        const validCards = this.game.phase === 'play' && this.game.currentPlayerIndex === myPlayer
+            ? this.game.getValidCards(myPlayer)
             : currentPlayer.hand;
         
         currentPlayer.hand.forEach(card => {
             const cardEl = this.createCardElement(card);
             
-            if (this.game.phase === 'play' && this.game.currentPlayerIndex === 0) {
+            if (this.game.phase === 'play' && this.game.currentPlayerIndex === myPlayer) {
                 const isValid = validCards.some(c => c.suit === card.suit && c.rank === card.rank);
                 if (!isValid) {
                     cardEl.classList.add('disabled');
                 } else {
                     cardEl.addEventListener('click', () => this.onCardClick(card));
                 }
-            } else if (this.game.phase === 'exchange' && this.game.currentPlayerIndex === 0) {
+            } else if (this.game.phase === 'exchange' && this.game.currentPlayerIndex === myPlayer) {
                 cardEl.addEventListener('click', () => this.onCardSelectForExchange(card, cardEl));
             }
             
@@ -506,14 +513,24 @@ class GameUI {
     }
     
     onCardClick(card) {
-        if (this.game.phase !== 'play' || this.game.currentPlayerIndex !== 0) {
+        if (this.game.phase !== 'play') {
             return;
         }
         
-        this.game.playCard(0, card);
+        const currentPlayer = this.isOnlineMode ? this.myPlayerId : 0;
+        if (this.game.currentPlayerIndex !== currentPlayer) {
+            return;
+        }
         
-        // Auto-play for other players
-        setTimeout(() => this.autoPlayOtherPlayers(), 1000);
+        this.game.playCard(currentPlayer, card);
+        
+        if (this.isOnlineMode) {
+            // Send action to server
+            this.onlineClient.sendGameAction('play_card', { card });
+        } else {
+            // Auto-play for other players
+            setTimeout(() => this.autoPlayOtherPlayers(), 1000);
+        }
     }
     
     onCardSelectForExchange(card, cardEl) {
@@ -536,8 +553,13 @@ class GameUI {
         this.game.chooseTrump(suit);
         document.getElementById('trump-modal').classList.remove('active');
         
-        // Auto-exchange for other players
-        setTimeout(() => this.autoExchangeOtherPlayers(), 500);
+        if (this.isOnlineMode) {
+            // Send action to server
+            this.onlineClient.sendGameAction('choose_trump', { suit });
+        } else {
+            // Auto-exchange for other players
+            setTimeout(() => this.autoExchangeOtherPlayers(), 500);
+        }
         
         this.render();
     }
@@ -546,11 +568,13 @@ class GameUI {
         const actionArea = document.getElementById('action-area');
         actionArea.innerHTML = '';
         
-        if (this.game.phase === 'trump' && this.game.currentPlayerIndex === 0) {
+        const currentPlayer = this.isOnlineMode ? this.myPlayerId : 0;
+        
+        if (this.game.phase === 'trump' && this.game.currentPlayerIndex === currentPlayer) {
             document.getElementById('trump-modal').classList.add('active');
         }
         
-        if (this.game.phase === 'exchange' && this.game.currentPlayerIndex === 0) {
+        if (this.game.phase === 'exchange' && this.game.currentPlayerIndex === currentPlayer) {
             const info = document.createElement('div');
             info.className = 'exchange-info';
             info.textContent = `Wähle bis zu 3 Karten zum Tauschen (${this.selectedCards.length} ausgewählt)`;
@@ -563,12 +587,17 @@ class GameUI {
             confirmBtn.className = 'btn btn-success';
             confirmBtn.textContent = 'Tausch bestätigen';
             confirmBtn.addEventListener('click', () => {
-                this.game.exchangeCards(0, this.selectedCards);
+                this.game.exchangeCards(currentPlayer, this.selectedCards);
+                
+                if (this.isOnlineMode) {
+                    // Send action to server
+                    this.onlineClient.sendGameAction('exchange_cards', { cards: this.selectedCards });
+                } else {
+                    // Auto-exchange for other players
+                    setTimeout(() => this.autoExchangeOtherPlayers(), 500);
+                }
+                
                 this.selectedCards = [];
-                
-                // Auto-exchange for other players
-                setTimeout(() => this.autoExchangeOtherPlayers(), 500);
-                
                 this.render();
             });
             
@@ -576,7 +605,7 @@ class GameUI {
             actionArea.appendChild(buttonsDiv);
         }
         
-        if (this.game.phase === 'decide' && this.game.currentPlayerIndex === 0) {
+        if (this.game.phase === 'decide' && this.game.currentPlayerIndex === currentPlayer) {
             const trumpChooserIndex = (this.game.dealerIndex + 1) % this.game.players.length;
             const mustPlay = this.game.currentPlayerIndex === trumpChooserIndex || this.game.trump === 'diamonds';
             
@@ -587,10 +616,15 @@ class GameUI {
             playBtn.className = 'btn btn-success';
             playBtn.textContent = mustPlay ? 'Weiter (Pflicht)' : 'Mitspielen';
             playBtn.addEventListener('click', () => {
-                this.game.playerDecision(0, true);
+                this.game.playerDecision(currentPlayer, true);
                 
-                // Auto-decide for other players
-                setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                if (this.isOnlineMode) {
+                    // Send action to server
+                    this.onlineClient.sendGameAction('player_decision', { isPlaying: true });
+                } else {
+                    // Auto-decide for other players
+                    setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                }
                 
                 this.render();
             });
@@ -602,10 +636,15 @@ class GameUI {
                 passBtn.className = 'btn btn-secondary';
                 passBtn.textContent = 'Aussteigen';
                 passBtn.addEventListener('click', () => {
-                    this.game.playerDecision(0, false);
+                    this.game.playerDecision(currentPlayer, false);
                     
-                    // Auto-decide for other players
-                    setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                    if (this.isOnlineMode) {
+                        // Send action to server
+                        this.onlineClient.sendGameAction('player_decision', { isPlaying: false });
+                    } else {
+                        // Auto-decide for other players
+                        setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                    }
                     
                     this.render();
                 });
@@ -790,9 +829,224 @@ class GameUI {
     }
 }
 
+// Online Mode Management
+class OnlineGameManager {
+    constructor(game, ui) {
+        this.game = game;
+        this.ui = ui;
+        this.client = null;
+        this.isOnlineMode = false;
+        this.myPlayerId = null;
+        
+        this.initializeOnlineEventListeners();
+    }
+    
+    initializeOnlineEventListeners() {
+        // Mode selection
+        document.getElementById('local-mode-btn').addEventListener('click', () => {
+            this.showScreen('setup');
+        });
+        
+        document.getElementById('online-mode-btn').addEventListener('click', () => {
+            this.startOnlineMode();
+        });
+        
+        // Back buttons
+        document.getElementById('back-to-mode').addEventListener('click', () => {
+            this.showScreen('mode');
+        });
+        
+        document.getElementById('back-to-mode-online').addEventListener('click', () => {
+            if (this.client) {
+                this.client.leaveRoom();
+                this.client.disconnect();
+                this.client = null;
+            }
+            this.showScreen('mode');
+        });
+        
+        // Room management
+        document.getElementById('create-room-btn').addEventListener('click', () => {
+            this.createRoom();
+        });
+        
+        document.getElementById('join-room-btn').addEventListener('click', () => {
+            document.getElementById('join-room-form').style.display = 'block';
+        });
+        
+        document.getElementById('cancel-join-btn').addEventListener('click', () => {
+            document.getElementById('join-room-form').style.display = 'none';
+        });
+        
+        document.getElementById('join-submit-btn').addEventListener('click', () => {
+            this.joinRoom();
+        });
+        
+        document.getElementById('leave-room-btn').addEventListener('click', () => {
+            this.leaveRoom();
+        });
+        
+        document.getElementById('start-online-game-btn').addEventListener('click', () => {
+            this.client.startGame();
+        });
+    }
+    
+    showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(screen => {
+            screen.classList.remove('active');
+        });
+        document.getElementById(`${screenId}-screen`).classList.add('active');
+    }
+    
+    async startOnlineMode() {
+        this.isOnlineMode = true;
+        this.showScreen('online');
+        
+        const statusEl = document.getElementById('connection-status');
+        statusEl.textContent = 'Verbinde mit Server...';
+        
+        try {
+            this.client = new OnlineClient();
+            await this.client.connect();
+            
+            statusEl.textContent = 'Verbunden!';
+            document.getElementById('online-menu').style.display = 'block';
+            document.getElementById('connection-status').style.display = 'none';
+            
+            this.setupClientCallbacks();
+        } catch (error) {
+            statusEl.textContent = 'Verbindung fehlgeschlagen. Bitte später erneut versuchen.';
+            console.error('Connection failed:', error);
+        }
+    }
+    
+    setupClientCallbacks() {
+        this.client.onRoomStateUpdate = (data) => {
+            this.updateRoomView(data);
+        };
+        
+        this.client.onGameStarted = (data) => {
+            this.startOnlineGame(data);
+        };
+        
+        this.client.onGameAction = (data) => {
+            this.handleGameAction(data);
+        };
+        
+        this.client.onError = (message) => {
+            alert(message);
+        };
+    }
+    
+    createRoom() {
+        const playerName = document.getElementById('player-name').value || 'Spieler';
+        this.client.createRoom(playerName, 4);
+        
+        document.getElementById('online-menu').style.display = 'none';
+        document.getElementById('room-view').style.display = 'block';
+    }
+    
+    joinRoom() {
+        const roomCode = document.getElementById('room-code-input').value.toUpperCase();
+        const playerName = document.getElementById('player-name').value || 'Spieler';
+        
+        if (roomCode.length !== 6) {
+            alert('Bitte gib einen 6-stelligen Raum-Code ein');
+            return;
+        }
+        
+        this.client.joinRoom(roomCode, playerName);
+        
+        document.getElementById('online-menu').style.display = 'none';
+        document.getElementById('room-view').style.display = 'block';
+    }
+    
+    leaveRoom() {
+        this.client.leaveRoom();
+        document.getElementById('room-view').style.display = 'none';
+        document.getElementById('online-menu').style.display = 'block';
+    }
+    
+    updateRoomView(data) {
+        document.getElementById('room-code-display').textContent = data.roomCode;
+        
+        const playersList = document.getElementById('players-list');
+        playersList.innerHTML = '<h3>Spieler:</h3>';
+        
+        data.players.forEach((player, index) => {
+            const playerDiv = document.createElement('div');
+            playerDiv.className = 'player-item';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'player-name';
+            nameSpan.textContent = player.name;
+            playerDiv.appendChild(nameSpan);
+            
+            if (player.id === this.client.playerId) {
+                const badge = document.createElement('span');
+                badge.className = 'player-badge';
+                badge.textContent = 'Du';
+                playerDiv.appendChild(badge);
+            }
+            
+            if (index === 0) {
+                const hostBadge = document.createElement('span');
+                hostBadge.className = 'player-badge';
+                hostBadge.style.background = '#28a745';
+                hostBadge.textContent = 'Host';
+                playerDiv.appendChild(hostBadge);
+            }
+            
+            playersList.appendChild(playerDiv);
+        });
+        
+        // Show start button only for host
+        const startBtn = document.getElementById('start-online-game-btn');
+        startBtn.style.display = data.isHost ? 'block' : 'none';
+    }
+    
+    startOnlineGame(data) {
+        this.myPlayerId = this.client.playerId;
+        
+        // Initialize game with online players
+        const names = data.players.map(p => p.name);
+        this.game.initializePlayers(names.length, names);
+        this.game.startRound();
+        
+        this.showScreen('game');
+        this.ui.isOnlineMode = true;
+        this.ui.myPlayerId = this.myPlayerId;
+        this.ui.onlineClient = this.client;
+        this.ui.render();
+    }
+    
+    handleGameAction(data) {
+        // Apply game action from other players
+        switch (data.action) {
+            case 'choose_trump':
+                this.game.chooseTrump(data.payload.suit);
+                this.ui.render();
+                break;
+            case 'exchange_cards':
+                this.game.exchangeCards(data.playerId, data.payload.cards);
+                this.ui.render();
+                break;
+            case 'player_decision':
+                this.game.playerDecision(data.playerId, data.payload.isPlaying);
+                this.ui.render();
+                break;
+            case 'play_card':
+                this.game.playCard(data.playerId, data.payload.card);
+                this.ui.render();
+                break;
+        }
+    }
+}
+
 // Initialize game
 const game = new ZwanzigAbGame();
 const ui = new GameUI(game);
+const onlineManager = new OnlineGameManager(game, ui);
 
 // Initialize player inputs
 ui.updatePlayerInputs(4);

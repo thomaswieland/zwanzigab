@@ -10,8 +10,19 @@
 </head>
 <body>
     <div id="app">
-        <!-- Setup Screen -->
-        <div id="setup-screen" class="screen active">
+        <!-- Mode Selection Screen -->
+        <div id="mode-screen" class="screen active">
+            <div class="container">
+                <h1>Zwanzig ab</h1>
+                <div class="mode-selection">
+                    <button id="local-mode-btn" class="btn btn-primary btn-large">Lokal spielen</button>
+                    <button id="online-mode-btn" class="btn btn-primary btn-large">Online spielen</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Screen (Local) -->
+        <div id="setup-screen" class="screen">
             <div class="container">
                 <h1>Zwanzig ab</h1>
                 <div class="setup-controls">
@@ -30,6 +41,54 @@
                     </div>
                     
                     <button id="start-game" class="btn btn-primary">Spiel starten</button>
+                    <button id="back-to-mode" class="btn btn-secondary">Zurück</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Online Setup Screen -->
+        <div id="online-screen" class="screen">
+            <div class="container">
+                <h1>Online spielen</h1>
+                <div class="online-controls">
+                    <div id="connection-status" class="connection-status">Verbinde...</div>
+                    
+                    <div id="online-menu" class="online-menu" style="display: none;">
+                        <div class="form-group">
+                            <label for="player-name">Dein Name:</label>
+                            <input type="text" id="player-name" placeholder="Dein Name" value="Spieler">
+                        </div>
+                        
+                        <div class="button-group">
+                            <button id="create-room-btn" class="btn btn-primary">Raum erstellen</button>
+                            <button id="join-room-btn" class="btn btn-primary">Raum beitreten</button>
+                        </div>
+                        
+                        <div id="join-room-form" style="display: none;">
+                            <div class="form-group">
+                                <label for="room-code-input">Raum-Code:</label>
+                                <input type="text" id="room-code-input" placeholder="ABCDEF" maxlength="6" style="text-transform: uppercase;">
+                            </div>
+                            <button id="join-submit-btn" class="btn btn-primary">Beitreten</button>
+                            <button id="cancel-join-btn" class="btn btn-secondary">Abbrechen</button>
+                        </div>
+                    </div>
+                    
+                    <div id="room-view" style="display: none;">
+                        <div class="room-info">
+                            <h2>Raum: <span id="room-code-display"></span></h2>
+                            <p class="room-code-hint">Teile diesen Code mit deinen Freunden!</p>
+                        </div>
+                        
+                        <div id="players-list" class="players-list"></div>
+                        
+                        <div class="room-actions">
+                            <button id="start-online-game-btn" class="btn btn-primary" style="display: none;">Spiel starten</button>
+                            <button id="leave-room-btn" class="btn btn-secondary">Raum verlassen</button>
+                        </div>
+                    </div>
+                    
+                    <button id="back-to-mode-online" class="btn btn-secondary">Zurück</button>
                 </div>
             </div>
         </div>
@@ -74,6 +133,7 @@
         </div>
     </div>
 
+    <script src="online-client.js"></script>
     <script src="game.js"></script>
 </body>
 </html>

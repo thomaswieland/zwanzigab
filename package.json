@@ -1,0 +1,17 @@
+{
+  "name": "zwanzigab",
+  "version": "1.0.0",
+  "description": "Zwanzig ab - Kartenspiel mit Online-Multiplayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["card-game", "zwanzigab", "multiplayer", "websocket"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2"
+  }
+}
