@@ -154,8 +154,25 @@ body {
 }
 
 .player-score.active {
-    background: rgba(102, 126, 234, 0.2);
+    background: rgba(102, 126, 234, 0.3);
+    border: 2px solid #667eea;
     border-radius: 8px;
+    box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+}
+
+.turn-indicator {
+    color: #667eea;
+    font-weight: bold;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
 }
 
 .player-score .player-name {

@@ -431,8 +431,10 @@ class GameUI {
                 div.classList.add('out');
             }
             
+            const turnIndicator = i === this.game.currentPlayerIndex ? '<span class="turn-indicator">▶</span> ' : '';
+            
             div.innerHTML = `
-                <div class="player-name">${player.name}</div>
+                <div class="player-name">${turnIndicator}${player.name}</div>
                 <div class="score">${player.score}</div>
             `;
             scoreboard.appendChild(div);
@@ -1022,6 +1024,11 @@ class OnlineGameManager {
     
     handleGameAction(data) {
         // Apply game action from other players
+        // Skip if action is from current player (already applied locally)
+        if (data.playerId === this.myPlayerId) {
+            return;
+        }
+        
         switch (data.action) {
             case 'choose_trump':
                 this.game.chooseTrump(data.payload.suit);
