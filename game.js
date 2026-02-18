@@ -1018,11 +1018,6 @@ class OnlineGameManager {
         this.ui.myPlayerId = this.myPlayerId;
         this.ui.onlineClient = this.client;
         this.ui.render();
-        
-        // Auto-select trump if not the trump chooser
-        if (this.game.currentPlayerIndex !== this.myPlayerId) {
-            // Wait for the trump chooser to select
-        }
     }
     
     handleGameAction(data) {

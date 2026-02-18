@@ -13,9 +13,16 @@ app.use(express.static(__dirname));
 // Game rooms storage
 const rooms = new Map();
 
+// Note: Error messages are in German to match the UI language of the game
+
 // Generate random room code
 function generateRoomCode() {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
 }
 
 // WebSocket connection handler
