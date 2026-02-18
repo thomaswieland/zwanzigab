@@ -28,7 +28,7 @@ body {
 }
 
 /* Setup Screen */
-#setup-screen {
+#setup-screen.active {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -412,7 +412,7 @@ body {
 }
 
 /* Mode Selection Screen */
-#mode-screen {
+#mode-screen.active {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -453,7 +453,7 @@ body {
 }
 
 /* Online Screen */
-#online-screen {
+#online-screen.active {
     display: flex;
     align-items: center;
     justify-content: center;
