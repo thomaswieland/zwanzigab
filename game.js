@@ -1,522 +1,798 @@
-// Zwanzig Ab - Game Logic
-
-// Constants
-const TRICK_COMPLETION_DELAY = 1000; // milliseconds
-
-class Card {
-    constructor(suit, rank) {
-        this.suit = suit;
-        this.rank = rank;
-    }
-
-    getValue() {
-        const values = {
-            '7': 0, '8': 1, '9': 2, '10': 3,
-            'Bube': 4, 'Dame': 5, 'König': 6, 'Ass': 7
-        };
-        return values[this.rank];
-    }
-
-    getSuitSymbol() {
-        const symbols = {
-            'Herz': '♥',
-            'Karo': '♦',
-            'Pik': '♠',
-            'Kreuz': '♣'
-        };
-        return symbols[this.suit];
-    }
-
-    getSuitClass() {
-        return this.suit.toLowerCase();
-    }
-}
-
-class Deck {
+// Game State
+class ZwanzigAbGame {
     constructor() {
-        this.cards = [];
-        this.reset();
-    }
-
-    reset() {
-        const suits = ['Herz', 'Karo', 'Pik', 'Kreuz'];
-        const ranks = ['7', '8', '9', '10', 'Bube', 'Dame', 'König', 'Ass'];
+        this.players = [];
+        this.currentPlayerIndex = 0;
+        this.dealerIndex = 0;
+        this.deck = [];
+        this.trump = null;
+        this.currentTrick = [];
+        this.trickWinner = null;
+        this.phase = 'setup'; // setup, trump, exchange, decide, play, roundEnd, gameOver
+        this.roundNumber = 0;
+        this.tricksWon = [];
+        this.playersInRound = [];
+        this.exchangesRemaining = 0;
         
-        this.cards = [];
-        for (let suit of suits) {
-            for (let rank of ranks) {
-                this.cards.push(new Card(suit, rank));
+        this.suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        this.ranks = ['7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+        this.rankValues = { '7': 0, '8': 1, '9': 2, '10': 3, 'J': 4, 'Q': 5, 'K': 6, 'A': 7 };
+        
+        this.suitSymbols = {
+            hearts: '♥',
+            diamonds: '♦',
+            clubs: '♣',
+            spades: '♠'
+        };
+        
+        this.suitNames = {
+            hearts: 'Herz',
+            diamonds: 'Karo',
+            clubs: 'Kreuz',
+            spades: 'Pik'
+        };
+    }
+    
+    initializePlayers(count, names) {
+        this.players = [];
+        for (let i = 0; i < count; i++) {
+            this.players.push({
+                id: i,
+                name: names[i] || `Spieler ${i + 1}`,
+                score: 20,
+                hand: [],
+                tricksWon: 0,
+                isPlaying: true,
+                isOut: false
+            });
+        }
+        this.dealerIndex = 0;
+        this.roundNumber = 0;
+    }
+    
+    createDeck() {
+        this.deck = [];
+        for (let suit of this.suits) {
+            for (let rank of this.ranks) {
+                this.deck.push({ suit, rank });
             }
         }
     }
-
-    shuffle() {
-        for (let i = this.cards.length - 1; i > 0; i--) {
+    
+    shuffleDeck() {
+        for (let i = this.deck.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
-            [this.cards[i], this.cards[j]] = [this.cards[j], this.cards[i]];
+            [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
         }
     }
-
-    deal(count) {
-        return this.cards.splice(0, count);
-    }
-}
-
-class Player {
-    constructor(name) {
-        this.name = name;
-        this.score = 20;
-        this.hand = [];
-        this.tricks = 0;
-        this.eliminated = false;
-    }
-
-    addCards(cards) {
-        this.hand.push(...cards);
-    }
-
-    playCard(index) {
-        return this.hand.splice(index, 1)[0];
-    }
-
-    clearHand() {
-        this.hand = [];
-        this.tricks = 0;
-    }
-
-    updateScore(tricks) {
-        const pointChanges = {
-            0: 5,   // Kein Stich: +5
-            1: 0,   // 1 Stich: 0
-            2: -1,  // 2 Stiche: -1
-            3: -2,  // 3 Stiche: -2
-            4: -3,  // 4 Stiche: -3
-            5: -4   // 5 Stiche: -4
-        };
+    
+    startRound() {
+        this.roundNumber++;
+        this.createDeck();
+        this.shuffleDeck();
         
-        this.score += pointChanges[tricks] || 0;
-        
-        if (this.score <= 0) {
-            this.eliminated = true;
-        }
-    }
-}
-
-class Game {
-    constructor(playerNames) {
-        this.players = playerNames.map(name => new Player(name));
-        this.deck = new Deck();
-        this.currentPlayerIndex = 0;
-        this.round = 0;
-        this.trumpSuit = null;
-        this.currentTrick = [];
-        this.leadingSuit = null;
-        this.roundStartPlayer = 0;
-        this.trickStartPlayer = 0;
-    }
-
-    startNewRound() {
-        this.round++;
-        
-        // Reset deck and shuffle
-        this.deck.reset();
-        this.deck.shuffle();
-        
-        // Clear hands and tricks
-        this.players.forEach(player => player.clearHand());
-        
-        // Deal 5 cards to each active player
-        const activePlayers = this.players.filter(p => !p.eliminated);
-        activePlayers.forEach(player => {
-            player.addCards(this.deck.deal(5));
+        // Reset player states
+        this.players.forEach(p => {
+            p.hand = [];
+            p.tricksWon = 0;
+            p.isPlaying = null; // Will be set during decide phase
         });
         
-        // Set trump suit
-        if (this.deck.cards.length > 0) {
-            this.trumpSuit = this.deck.cards[0].suit;
-        } else {
-            this.trumpSuit = ['Herz', 'Karo', 'Pik', 'Kreuz'][Math.floor(Math.random() * 4)];
-        }
-        
-        // Set starting player
-        this.currentPlayerIndex = this.roundStartPlayer;
-        this.trickStartPlayer = this.roundStartPlayer;
+        this.tricksWon = this.players.map(() => 0);
         this.currentTrick = [];
-        this.leadingSuit = null;
-    }
-
-    canPlayCard(player, card) {
-        // If leading, can play any card
-        if (this.currentTrick.length === 0) {
-            return true;
+        this.trump = null;
+        
+        // Deal initial 2 cards
+        for (let i = 0; i < 2; i++) {
+            this.players.forEach(player => {
+                if (this.deck.length > 0) {
+                    player.hand.push(this.deck.pop());
+                }
+            });
         }
         
-        // Must follow suit if possible
-        const hasSuit = player.hand.some(c => c.suit === this.leadingSuit);
-        if (hasSuit) {
-            return card.suit === this.leadingSuit;
+        // Trump chooser is left of dealer
+        this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.length;
+        this.phase = 'trump';
+    }
+    
+    chooseTrump(suit) {
+        this.trump = suit;
+        
+        // Deal remaining 3 cards to complete 5-card hands
+        for (let i = 0; i < 3; i++) {
+            this.players.forEach(player => {
+                if (this.deck.length > 0) {
+                    player.hand.push(this.deck.pop());
+                }
+            });
         }
         
-        // If can't follow suit, can play any card
-        return true;
+        // Start exchange phase
+        this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.length;
+        this.phase = 'exchange';
+        this.exchangesRemaining = this.players.length;
     }
-
-    playCard(playerIndex, cardIndex) {
+    
+    exchangeCards(playerIndex, cardsToExchange) {
         const player = this.players[playerIndex];
-        const card = player.hand[cardIndex];
         
-        if (!this.canPlayCard(player, card)) {
-            return false;
+        // Remove cards from hand
+        player.hand = player.hand.filter(card => 
+            !cardsToExchange.some(c => c.suit === card.suit && c.rank === card.rank)
+        );
+        
+        // Draw new cards
+        const drawCount = Math.min(cardsToExchange.length, this.deck.length);
+        for (let i = 0; i < drawCount; i++) {
+            player.hand.push(this.deck.pop());
         }
         
-        // Set leading suit for this trick
-        if (this.currentTrick.length === 0) {
-            this.leadingSuit = card.suit;
+        this.exchangesRemaining--;
+        this.nextPlayer();
+        
+        if (this.exchangesRemaining === 0) {
+            // Move to decide phase
+            this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.length;
+            this.phase = 'decide';
+            this.playersInRound = [...this.players];
+        }
+    }
+    
+    playerDecision(playerIndex, isPlaying) {
+        const player = this.players[playerIndex];
+        player.isPlaying = isPlaying;
+        
+        // Trump chooser must play
+        const trumpChooserIndex = (this.dealerIndex + 1) % this.players.length;
+        if (playerIndex === trumpChooserIndex) {
+            player.isPlaying = true;
         }
         
-        // Play the card
-        const playedCard = player.playCard(cardIndex);
-        this.currentTrick.push({
-            player: player,
-            card: playedCard
+        // If diamonds, everyone must play
+        if (this.trump === 'diamonds') {
+            player.isPlaying = true;
+        }
+        
+        // Check if all players have decided
+        const allDecided = this.players.every((p, i) => {
+            const trumpChooser = i === trumpChooserIndex;
+            const mustPlay = trumpChooser || this.trump === 'diamonds';
+            return mustPlay || p.isPlaying !== null;
         });
         
-        return true;
+        if (allDecided) {
+            // Check if only trump chooser is playing
+            const playingPlayers = this.players.filter(p => p.isPlaying);
+            if (playingPlayers.length === 1) {
+                // Trump chooser wins all tricks automatically
+                const trumpChooser = this.players[trumpChooserIndex];
+                this.tricksWon[trumpChooserIndex] = 5;
+                this.endRound();
+                return;
+            }
+            
+            // Start playing tricks
+            this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.length;
+            this.phase = 'play';
+            this.currentTrick = [];
+        } else {
+            this.nextPlayer();
+        }
     }
-
+    
+    playCard(playerIndex, card) {
+        const player = this.players[playerIndex];
+        
+        // Remove card from hand
+        player.hand = player.hand.filter(c => 
+            !(c.suit === card.suit && c.rank === card.rank)
+        );
+        
+        // Add to current trick
+        this.currentTrick.push({
+            playerIndex,
+            card
+        });
+        
+        // Check if trick is complete
+        const playingPlayers = this.players.filter(p => p.isPlaying);
+        if (this.currentTrick.length === playingPlayers.length) {
+            this.evaluateTrick();
+        } else {
+            this.nextPlayingPlayer();
+        }
+    }
+    
     evaluateTrick() {
+        const leadCard = this.currentTrick[0].card;
+        const leadSuit = leadCard.suit;
+        
         let winningPlay = this.currentTrick[0];
+        let winningValue = this.getCardValue(leadCard, leadSuit);
         
         for (let i = 1; i < this.currentTrick.length; i++) {
-            const currentPlay = this.currentTrick[i];
+            const play = this.currentTrick[i];
+            const value = this.getCardValue(play.card, leadSuit);
             
-            // Trump beats non-trump
-            if (currentPlay.card.suit === this.trumpSuit && 
-                winningPlay.card.suit !== this.trumpSuit) {
-                winningPlay = currentPlay;
-            }
-            // Both trump or both same suit - higher value wins
-            else if ((currentPlay.card.suit === this.trumpSuit && 
-                      winningPlay.card.suit === this.trumpSuit) ||
-                     (currentPlay.card.suit === winningPlay.card.suit)) {
-                if (currentPlay.card.getValue() > winningPlay.card.getValue()) {
-                    winningPlay = currentPlay;
-                }
+            if (value > winningValue) {
+                winningPlay = play;
+                winningValue = value;
             }
         }
         
-        // Award trick to winner
-        winningPlay.player.tricks++;
+        this.trickWinner = winningPlay.playerIndex;
+        this.tricksWon[this.trickWinner]++;
         
-        // Set next trick starter
-        const winnerIndex = this.players.indexOf(winningPlay.player);
-        this.trickStartPlayer = winnerIndex;
-        this.currentPlayerIndex = winnerIndex;
-        
-        // Clear trick
-        this.currentTrick = [];
-        this.leadingSuit = null;
-        
-        return winningPlay.player;
+        // Check if round is over
+        if (this.players[0].hand.length === 0) {
+            setTimeout(() => this.endRound(), 2000);
+        } else {
+            setTimeout(() => {
+                this.currentTrick = [];
+                this.currentPlayerIndex = this.trickWinner;
+                this.trickWinner = null;
+                ui.render();
+            }, 2000);
+        }
     }
-
-    isRoundOver() {
-        const activePlayers = this.players.filter(p => !p.eliminated);
-        return activePlayers.every(p => p.hand.length === 0);
+    
+    getCardValue(card, leadSuit) {
+        const isTrump = card.suit === this.trump;
+        const isLeadSuit = card.suit === leadSuit;
+        
+        if (isTrump) {
+            return 1000 + this.rankValues[card.rank];
+        } else if (isLeadSuit) {
+            return 100 + this.rankValues[card.rank];
+        } else {
+            return this.rankValues[card.rank];
+        }
     }
-
-    finishRound() {
-        // Update scores based on tricks
-        this.players.forEach(player => {
-            if (!player.eliminated) {
-                player.updateScore(player.tricks);
+    
+    endRound() {
+        const isHearts = this.trump === 'hearts';
+        const multiplier = isHearts ? 2 : 1;
+        
+        this.players.forEach((player, i) => {
+            if (!player.isPlaying) {
+                return; // No score change for players who sat out
+            }
+            
+            const tricks = this.tricksWon[i];
+            
+            if (tricks === 0) {
+                // No tricks: add 5 points (penalty)
+                player.score += 5 * multiplier;
+            } else if (tricks === 5) {
+                // All 5 tricks: subtract 5 points (bonus)
+                player.score -= 5 * multiplier;
+            } else {
+                // Regular tricks: subtract 1 per trick
+                player.score -= tricks * multiplier;
+            }
+            
+            // Check if player reached 0 or below
+            if (player.score <= 0) {
+                player.isOut = true;
             }
         });
         
-        // Move to next round starter
-        this.roundStartPlayer = (this.roundStartPlayer + 1) % this.players.length;
+        // Check for winners
+        const winners = this.players.filter(p => p.score <= 0);
+        if (winners.length > 0) {
+            // Find the player(s) with the lowest score
+            const lowestScore = Math.min(...winners.map(p => p.score));
+            const gameWinners = winners.filter(p => p.score === lowestScore);
+            
+            if (gameWinners.length === 1) {
+                this.phase = 'gameOver';
+                return;
+            }
+            // If tie, game continues
+        }
         
-        // Skip eliminated players
-        while (this.players[this.roundStartPlayer].eliminated) {
-            this.roundStartPlayer = (this.roundStartPlayer + 1) % this.players.length;
-        }
+        // Move dealer position
+        this.dealerIndex = (this.dealerIndex + 1) % this.players.length;
+        
+        this.phase = 'roundEnd';
     }
-
-    isGameOver() {
-        const activePlayers = this.players.filter(p => !p.eliminated);
-        return activePlayers.length <= 1;
+    
+    nextRound() {
+        this.startRound();
     }
-
-    getWinner() {
-        const activePlayers = this.players.filter(p => !p.eliminated);
-        if (activePlayers.length === 1) {
-            return activePlayers[0];
-        }
-        return null;
-    }
-
-    getNextPlayer() {
+    
+    nextPlayer() {
         do {
             this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
-        } while (this.players[this.currentPlayerIndex].eliminated);
+        } while (!this.playerExists(this.currentPlayerIndex));
+    }
+    
+    nextPlayingPlayer() {
+        do {
+            this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+        } while (!this.players[this.currentPlayerIndex].isPlaying);
+    }
+    
+    playerExists(index) {
+        return this.players[index] !== undefined;
+    }
+    
+    getValidCards(playerIndex) {
+        const player = this.players[playerIndex];
+        if (this.currentTrick.length === 0) {
+            return player.hand; // Can lead with any card
+        }
         
-        return this.players[this.currentPlayerIndex];
+        const leadSuit = this.currentTrick[0].card.suit;
+        const cardsInSuit = player.hand.filter(c => c.suit === leadSuit);
+        
+        if (cardsInSuit.length > 0) {
+            return cardsInSuit; // Must follow suit
+        }
+        
+        const trumpCards = player.hand.filter(c => c.suit === this.trump);
+        if (trumpCards.length > 0) {
+            return trumpCards; // Must play trump if can't follow
+        }
+        
+        return player.hand; // Can play anything if can't follow or trump
     }
 }
 
 // UI Controller
 class GameUI {
-    constructor() {
-        this.game = null;
-        this.currentScreen = 'start';
-        this.playerCount = 2;
+    constructor(game) {
+        this.game = game;
+        this.selectedCards = [];
         this.initializeEventListeners();
-        this.showScreen('start-screen');
     }
-
+    
     initializeEventListeners() {
-        // Start screen
-        document.getElementById('add-player-btn').addEventListener('click', () => this.addPlayerInput());
-        document.getElementById('start-game-btn').addEventListener('click', () => this.startGame());
-        document.getElementById('show-rules-btn').addEventListener('click', () => this.showRules());
+        document.getElementById('player-count').addEventListener('change', (e) => {
+            this.updatePlayerInputs(parseInt(e.target.value));
+        });
         
-        // Rules modal
-        document.querySelector('.close').addEventListener('click', () => this.hideRules());
+        document.getElementById('start-game').addEventListener('click', () => {
+            this.startGame();
+        });
         
-        // Game screen
-        document.getElementById('menu-btn').addEventListener('click', () => this.showMenu());
-        document.getElementById('next-round-btn').addEventListener('click', () => this.nextRound());
-        
-        // Game over screen
-        document.getElementById('new-game-btn').addEventListener('click', () => this.resetToStart());
-        
-        // Close modal on outside click
-        window.addEventListener('click', (e) => {
-            const modal = document.getElementById('rules-modal');
-            if (e.target === modal) {
-                this.hideRules();
+        document.getElementById('menu-btn').addEventListener('click', () => {
+            if (confirm('Zurück zum Hauptmenü? Das Spiel wird beendet.')) {
+                this.showScreen('setup');
+                this.game.phase = 'setup';
             }
         });
-    }
-
-    addPlayerInput() {
-        if (this.playerCount >= 4) {
-            alert('Maximal 4 Spieler möglich!');
-            return;
-        }
         
-        this.playerCount++;
-        const playerList = document.getElementById('player-list');
-        const input = document.createElement('div');
-        input.className = 'player-input';
-        input.innerHTML = `<input type="text" placeholder="Spieler ${this.playerCount} Name" 
-                           id="player${this.playerCount}" value="Spieler ${this.playerCount}">`;
-        playerList.appendChild(input);
-        
-        if (this.playerCount >= 4) {
-            document.getElementById('add-player-btn').style.display = 'none';
-        }
+        // Trump selection
+        document.querySelectorAll('.trump-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const suit = e.target.dataset.suit;
+                this.selectTrump(suit);
+            });
+        });
     }
-
+    
+    updatePlayerInputs(count) {
+        const inputs = document.querySelectorAll('.player-name-input');
+        inputs.forEach((input, i) => {
+            input.style.display = i < count ? 'block' : 'none';
+        });
+    }
+    
     startGame() {
-        const playerNames = [];
-        for (let i = 1; i <= this.playerCount; i++) {
-            const input = document.getElementById(`player${i}`);
-            const name = input.value.trim() || `Spieler ${i}`;
-            playerNames.push(name);
-        }
+        const count = parseInt(document.getElementById('player-count').value);
+        const inputs = document.querySelectorAll('.player-name-input');
+        const names = Array.from(inputs).slice(0, count).map(input => input.value || input.placeholder);
         
-        this.game = new Game(playerNames);
-        this.game.startNewRound();
-        this.showScreen('game-screen');
-        this.updateGameUI();
+        this.game.initializePlayers(count, names);
+        this.game.startRound();
+        this.showScreen('game');
+        this.render();
+        
+        // Auto-select trump if player 0 is not the trump chooser
+        if (this.game.currentPlayerIndex !== 0) {
+            setTimeout(() => this.autoSelectTrump(), 1000);
+        }
     }
-
+    
     showScreen(screenId) {
         document.querySelectorAll('.screen').forEach(screen => {
             screen.classList.remove('active');
         });
-        document.getElementById(screenId).classList.add('active');
-        this.currentScreen = screenId;
+        document.getElementById(`${screenId}-screen`).classList.add('active');
     }
-
-    showRules() {
-        document.getElementById('rules-modal').classList.add('active');
+    
+    render() {
+        this.renderScoreboard();
+        this.renderGameInfo();
+        this.renderPlayerHand();
+        this.renderActionArea();
+        this.renderTrickArea();
     }
-
-    hideRules() {
-        document.getElementById('rules-modal').classList.remove('active');
-    }
-
-    showMenu() {
-        if (confirm('Zurück zum Hauptmenü? Das aktuelle Spiel geht verloren.')) {
-            this.resetToStart();
-        }
-    }
-
-    resetToStart() {
-        this.game = null;
-        this.showScreen('start-screen');
-    }
-
-    updateGameUI() {
-        this.updateScoreboard();
-        this.updateGameInfo();
-        this.updateTable();
-        this.updateHand();
-    }
-
-    updateScoreboard() {
-        const scoresDiv = document.getElementById('scores');
-        scoresDiv.innerHTML = '';
+    
+    renderScoreboard() {
+        const scoreboard = document.getElementById('scoreboard');
+        scoreboard.innerHTML = '';
         
-        this.game.players.forEach((player, index) => {
-            const scoreItem = document.createElement('div');
-            scoreItem.className = 'score-item';
-            if (index === this.game.currentPlayerIndex) {
-                scoreItem.classList.add('active');
+        this.game.players.forEach((player, i) => {
+            const div = document.createElement('div');
+            div.className = 'player-score';
+            if (i === this.game.currentPlayerIndex) {
+                div.classList.add('active');
             }
-            if (player.eliminated) {
-                scoreItem.classList.add('eliminated');
+            if (player.isOut) {
+                div.classList.add('out');
             }
             
-            scoreItem.innerHTML = `
+            div.innerHTML = `
                 <div class="player-name">${player.name}</div>
-                <div class="player-score">${player.score}</div>
-                <div class="player-tricks">Stiche: ${player.tricks}</div>
+                <div class="score">${player.score}</div>
             `;
-            scoresDiv.appendChild(scoreItem);
+            scoreboard.appendChild(div);
         });
     }
-
-    updateGameInfo() {
-        const currentPlayer = this.game.players[this.game.currentPlayerIndex];
-        document.getElementById('current-player').textContent = 
-            `Am Zug: ${currentPlayer.name}`;
-        document.getElementById('round-info').textContent = 
-            `Runde ${this.game.round}`;
-        document.getElementById('trump-suit').textContent = 
-            `Trumpf: ${this.game.trumpSuit} ${new Card(this.game.trumpSuit, 'Ass').getSuitSymbol()}`;
-    }
-
-    updateTable() {
-        const playedCardsDiv = document.getElementById('played-cards');
-        playedCardsDiv.innerHTML = '';
+    
+    renderGameInfo() {
+        const phaseInfo = document.getElementById('phase-info');
+        const trumpInfo = document.getElementById('trump-info');
         
-        this.game.currentTrick.forEach(play => {
-            const cardDiv = this.createCardElement(play.card, -1, true);
-            playedCardsDiv.appendChild(cardDiv);
-        });
-    }
-
-    updateHand() {
-        const handDiv = document.getElementById('hand-cards');
-        handDiv.innerHTML = '';
+        const phaseTexts = {
+            trump: 'Trumpf wird gewählt...',
+            exchange: 'Kartentausch',
+            decide: 'Mitspielen oder Aussteigen?',
+            play: 'Spiel läuft',
+            roundEnd: 'Runde beendet',
+            gameOver: 'Spiel beendet!'
+        };
         
-        const currentPlayer = this.game.players[this.game.currentPlayerIndex];
+        phaseInfo.textContent = phaseTexts[this.game.phase] || '';
         
-        currentPlayer.hand.forEach((card, index) => {
-            const cardDiv = this.createCardElement(card, index, false);
-            
-            // Check if card can be played
-            if (!this.game.canPlayCard(currentPlayer, card)) {
-                cardDiv.classList.add('disabled');
-            } else {
-                cardDiv.addEventListener('click', () => this.handleCardClick(index));
-            }
-            
-            handDiv.appendChild(cardDiv);
-        });
+        if (this.game.trump) {
+            const symbol = this.game.suitSymbols[this.game.trump];
+            const name = this.game.suitNames[this.game.trump];
+            const color = (this.game.trump === 'hearts' || this.game.trump === 'diamonds') ? 'red' : 'black';
+            trumpInfo.innerHTML = `Trumpf: <span style="color: ${color === 'red' ? '#dc3545' : '#333'}">${symbol} ${name}</span>`;
+        } else {
+            trumpInfo.textContent = '';
+        }
     }
-
-    createCardElement(card, index, isPlayed) {
-        const cardDiv = document.createElement('div');
-        cardDiv.className = `card ${card.getSuitClass()}`;
-        if (isPlayed) {
-            cardDiv.classList.add('played');
+    
+    renderPlayerHand() {
+        const handDiv = document.getElementById('player-hand');
+        const currentPlayer = this.game.players[0]; // Always show player 0's hand (human player)
+        
+        handDiv.innerHTML = '<h3>Deine Karten</h3>';
+        
+        if (currentPlayer.hand.length === 0) {
+            return;
         }
         
-        cardDiv.innerHTML = `
-            <div class="rank">${card.rank}</div>
-            <div class="suit">${card.getSuitSymbol()}</div>
+        const validCards = this.game.phase === 'play' && this.game.currentPlayerIndex === 0
+            ? this.game.getValidCards(0)
+            : currentPlayer.hand;
+        
+        currentPlayer.hand.forEach(card => {
+            const cardEl = this.createCardElement(card);
+            
+            if (this.game.phase === 'play' && this.game.currentPlayerIndex === 0) {
+                const isValid = validCards.some(c => c.suit === card.suit && c.rank === card.rank);
+                if (!isValid) {
+                    cardEl.classList.add('disabled');
+                } else {
+                    cardEl.addEventListener('click', () => this.onCardClick(card));
+                }
+            } else if (this.game.phase === 'exchange' && this.game.currentPlayerIndex === 0) {
+                cardEl.addEventListener('click', () => this.onCardSelectForExchange(card, cardEl));
+            }
+            
+            handDiv.appendChild(cardEl);
+        });
+    }
+    
+    createCardElement(card) {
+        const div = document.createElement('div');
+        div.className = 'card';
+        
+        const color = (card.suit === 'hearts' || card.suit === 'diamonds') ? 'red' : 'black';
+        div.classList.add(color);
+        
+        div.innerHTML = `
+            <div class="card-rank">${card.rank}</div>
+            <div class="card-suit">${this.game.suitSymbols[card.suit]}</div>
         `;
         
-        return cardDiv;
+        return div;
     }
-
-    handleCardClick(cardIndex) {
-        const currentPlayer = this.game.players[this.game.currentPlayerIndex];
+    
+    onCardClick(card) {
+        if (this.game.phase !== 'play' || this.game.currentPlayerIndex !== 0) {
+            return;
+        }
         
-        if (this.game.playCard(this.game.currentPlayerIndex, cardIndex)) {
-            this.updateGameUI();
-            
-            // Check if trick is complete
-            const activePlayers = this.game.players.filter(p => !p.eliminated);
-            if (this.game.currentTrick.length === activePlayers.length) {
-                setTimeout(() => this.completeTrick(), TRICK_COMPLETION_DELAY);
-            } else {
-                // Move to next player
-                this.game.getNextPlayer();
-                this.updateGameUI();
+        this.game.playCard(0, card);
+        
+        // Auto-play for other players
+        setTimeout(() => this.autoPlayOtherPlayers(), 1000);
+    }
+    
+    onCardSelectForExchange(card, cardEl) {
+        const index = this.selectedCards.findIndex(c => c.suit === card.suit && c.rank === card.rank);
+        
+        if (index >= 0) {
+            this.selectedCards.splice(index, 1);
+            cardEl.classList.remove('selected');
+        } else {
+            if (this.selectedCards.length < 3) {
+                this.selectedCards.push(card);
+                cardEl.classList.add('selected');
             }
         }
+        
+        this.renderActionArea();
     }
-
-    completeTrick() {
-        const winner = this.game.evaluateTrick();
+    
+    selectTrump(suit) {
+        this.game.chooseTrump(suit);
+        document.getElementById('trump-modal').classList.remove('active');
         
-        this.updateGameUI();
+        // Auto-exchange for other players
+        setTimeout(() => this.autoExchangeOtherPlayers(), 500);
         
-        // Check if round is over
-        if (this.game.isRoundOver()) {
-            this.finishRound();
+        this.render();
+    }
+    
+    renderActionArea() {
+        const actionArea = document.getElementById('action-area');
+        actionArea.innerHTML = '';
+        
+        if (this.game.phase === 'trump' && this.game.currentPlayerIndex === 0) {
+            document.getElementById('trump-modal').classList.add('active');
+        }
+        
+        if (this.game.phase === 'exchange' && this.game.currentPlayerIndex === 0) {
+            const info = document.createElement('div');
+            info.className = 'exchange-info';
+            info.textContent = `Wähle bis zu 3 Karten zum Tauschen (${this.selectedCards.length} ausgewählt)`;
+            actionArea.appendChild(info);
+            
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'action-buttons';
+            
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = 'btn btn-success';
+            confirmBtn.textContent = 'Tausch bestätigen';
+            confirmBtn.addEventListener('click', () => {
+                this.game.exchangeCards(0, this.selectedCards);
+                this.selectedCards = [];
+                
+                // Auto-exchange for other players
+                setTimeout(() => this.autoExchangeOtherPlayers(), 500);
+                
+                this.render();
+            });
+            
+            buttonsDiv.appendChild(confirmBtn);
+            actionArea.appendChild(buttonsDiv);
+        }
+        
+        if (this.game.phase === 'decide' && this.game.currentPlayerIndex === 0) {
+            const trumpChooserIndex = (this.game.dealerIndex + 1) % this.game.players.length;
+            const mustPlay = this.game.currentPlayerIndex === trumpChooserIndex || this.game.trump === 'diamonds';
+            
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'action-buttons';
+            
+            const playBtn = document.createElement('button');
+            playBtn.className = 'btn btn-success';
+            playBtn.textContent = mustPlay ? 'Weiter (Pflicht)' : 'Mitspielen';
+            playBtn.addEventListener('click', () => {
+                this.game.playerDecision(0, true);
+                
+                // Auto-decide for other players
+                setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                
+                this.render();
+            });
+            
+            buttonsDiv.appendChild(playBtn);
+            
+            if (!mustPlay) {
+                const passBtn = document.createElement('button');
+                passBtn.className = 'btn btn-secondary';
+                passBtn.textContent = 'Aussteigen';
+                passBtn.addEventListener('click', () => {
+                    this.game.playerDecision(0, false);
+                    
+                    // Auto-decide for other players
+                    setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                    
+                    this.render();
+                });
+                
+                buttonsDiv.appendChild(passBtn);
+            }
+            
+            actionArea.appendChild(buttonsDiv);
+        }
+        
+        if (this.game.phase === 'roundEnd') {
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'action-buttons';
+            
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'btn btn-primary';
+            nextBtn.textContent = 'Nächste Runde';
+            nextBtn.addEventListener('click', () => {
+                this.game.nextRound();
+                this.render();
+            });
+            
+            buttonsDiv.appendChild(nextBtn);
+            actionArea.appendChild(buttonsDiv);
+        }
+        
+        if (this.game.phase === 'gameOver') {
+            const winners = this.game.players.filter(p => p.score <= 0);
+            const lowestScore = Math.min(...winners.map(p => p.score));
+            const winner = winners.find(p => p.score === lowestScore);
+            
+            const info = document.createElement('div');
+            info.className = 'exchange-info';
+            info.innerHTML = `<strong>${winner.name} hat gewonnen!</strong><br>Punktestand: ${winner.score}`;
+            actionArea.appendChild(info);
+            
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'action-buttons';
+            
+            const menuBtn = document.createElement('button');
+            menuBtn.className = 'btn btn-primary';
+            menuBtn.textContent = 'Zurück zum Menü';
+            menuBtn.addEventListener('click', () => {
+                this.showScreen('setup');
+                this.game.phase = 'setup';
+            });
+            
+            buttonsDiv.appendChild(menuBtn);
+            actionArea.appendChild(buttonsDiv);
         }
     }
-
-    finishRound() {
-        this.game.finishRound();
+    
+    renderTrickArea() {
+        const trickArea = document.getElementById('trick-area');
+        trickArea.innerHTML = '';
         
-        // Check if game is over
-        if (this.game.isGameOver()) {
-            this.showGameOver();
+        if (this.game.currentTrick.length > 0) {
+            const title = document.createElement('h3');
+            title.style.color = 'white';
+            title.style.marginBottom = '15px';
+            title.textContent = 'Aktueller Stich';
+            trickArea.appendChild(title);
+            
+            const cardsDiv = document.createElement('div');
+            cardsDiv.className = 'trick-cards';
+            
+            this.game.currentTrick.forEach(play => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'trick-card-wrapper';
+                
+                const label = document.createElement('div');
+                label.className = 'player-label';
+                label.textContent = this.game.players[play.playerIndex].name;
+                wrapper.appendChild(label);
+                
+                const cardEl = this.createCardElement(play.card);
+                wrapper.appendChild(cardEl);
+                
+                cardsDiv.appendChild(wrapper);
+            });
+            
+            trickArea.appendChild(cardsDiv);
+        }
+        
+        if (this.game.trickWinner !== null) {
+            const winnerText = document.createElement('div');
+            winnerText.className = 'exchange-info';
+            winnerText.innerHTML = `<strong>${this.game.players[this.game.trickWinner].name} gewinnt den Stich!</strong>`;
+            trickArea.appendChild(winnerText);
+        }
+    }
+    
+    autoPlayOtherPlayers() {
+        if (this.game.phase !== 'play') {
+            return;
+        }
+        
+        const playingPlayers = this.game.players.filter(p => p.isPlaying);
+        const currentPlayer = this.game.players[this.game.currentPlayerIndex];
+        
+        if (this.game.currentPlayerIndex !== 0 && currentPlayer.isPlaying) {
+            const validCards = this.game.getValidCards(this.game.currentPlayerIndex);
+            const randomCard = validCards[Math.floor(Math.random() * validCards.length)];
+            
+            setTimeout(() => {
+                this.game.playCard(this.game.currentPlayerIndex, randomCard);
+                this.render();
+                
+                // Continue auto-playing
+                setTimeout(() => this.autoPlayOtherPlayers(), 1000);
+            }, 1000);
         } else {
-            // Show next round button
-            document.getElementById('next-round-btn').style.display = 'block';
+            this.render();
+        }
+    }
+    
+    autoExchangeOtherPlayers() {
+        if (this.game.phase === 'decide') {
+            // Exchange phase is over, start auto-deciding
+            setTimeout(() => this.autoDecideOtherPlayers(), 500);
+            this.render();
+            return;
         }
         
-        this.updateGameUI();
+        if (this.game.phase !== 'exchange' || this.game.currentPlayerIndex === 0) {
+            this.render();
+            return;
+        }
+        
+        const player = this.game.players[this.game.currentPlayerIndex];
+        const exchangeCount = Math.floor(Math.random() * 4); // Random 0-3 cards
+        const cardsToExchange = player.hand.slice(0, exchangeCount);
+        
+        setTimeout(() => {
+            this.game.exchangeCards(this.game.currentPlayerIndex, cardsToExchange);
+            
+            // Continue auto-exchanging
+            setTimeout(() => this.autoExchangeOtherPlayers(), 500);
+        }, 500);
     }
-
-    nextRound() {
-        document.getElementById('next-round-btn').style.display = 'none';
-        this.game.startNewRound();
-        this.updateGameUI();
+    
+    autoDecideOtherPlayers() {
+        if (this.game.phase === 'play') {
+            // Decide phase is over, start auto-playing
+            setTimeout(() => this.autoPlayOtherPlayers(), 500);
+            this.render();
+            return;
+        }
+        
+        if (this.game.phase !== 'decide') {
+            this.render();
+            return;
+        }
+        
+        const trumpChooserIndex = (this.game.dealerIndex + 1) % this.game.players.length;
+        const currentPlayer = this.game.players[this.game.currentPlayerIndex];
+        
+        if (this.game.currentPlayerIndex !== 0) {
+            const mustPlay = this.game.currentPlayerIndex === trumpChooserIndex || this.game.trump === 'diamonds';
+            const decision = mustPlay ? true : Math.random() > 0.3; // 70% chance to play
+            
+            setTimeout(() => {
+                this.game.playerDecision(this.game.currentPlayerIndex, decision);
+                
+                // Continue auto-deciding
+                setTimeout(() => this.autoDecideOtherPlayers(), 500);
+            }, 500);
+        } else {
+            this.render();
+        }
     }
-
-    showGameOver() {
-        const winner = this.game.getWinner();
+    
+    autoSelectTrump() {
+        if (this.game.phase !== 'trump') {
+            return;
+        }
         
-        document.getElementById('winner-announcement').innerHTML = 
-            winner ? `<h2>🎉 ${winner.name} hat gewonnen! 🎉</h2>` : 
-                    `<h2>Unentschieden!</h2>`;
-        
-        const finalScoresDiv = document.getElementById('final-scores');
-        finalScoresDiv.innerHTML = '<h3>Endstand:</h3>';
-        
-        // Sort players by score
-        const sortedPlayers = [...this.game.players].sort((a, b) => b.score - a.score);
-        sortedPlayers.forEach(player => {
-            const scoreItem = document.createElement('div');
-            scoreItem.className = 'final-score-item';
-            scoreItem.textContent = `${player.name}: ${player.score} Punkte`;
-            finalScoresDiv.appendChild(scoreItem);
-        });
-        
-        this.showScreen('gameover-screen');
+        // Randomly select a trump suit for AI players
+        const suits = ['hearts', 'diamonds', 'clubs', 'spades'];
+        const randomSuit = suits[Math.floor(Math.random() * suits.length)];
+        this.selectTrump(randomSuit);
     }
 }
 
-// Initialize game when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    const gameUI = new GameUI();
-});
+// Initialize game
+const game = new ZwanzigAbGame();
+const ui = new GameUI(game);
+
+// Initialize player inputs
+ui.updatePlayerInputs(4);

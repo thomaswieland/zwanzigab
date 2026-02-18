@@ -2,113 +2,78 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
-    <title>Zwanzig Ab - Kartenspiel</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Zwanzig ab - Kartenspiel</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="app">
-        <!-- Start Screen -->
-        <div id="start-screen" class="screen active">
-            <h1>Zwanzig Ab</h1>
-            <p class="subtitle">Kartenspiel für 2-4 Spieler</p>
-            
-            <div class="player-setup">
-                <h2>Spieler hinzufügen</h2>
-                <div id="player-list">
-                    <div class="player-input">
-                        <input type="text" placeholder="Spieler 1 Name" id="player1" value="Spieler 1">
+        <!-- Setup Screen -->
+        <div id="setup-screen" class="screen active">
+            <div class="container">
+                <h1>Zwanzig ab</h1>
+                <div class="setup-controls">
+                    <label for="player-count">Anzahl Spieler:</label>
+                    <select id="player-count">
+                        <option value="2">2 Spieler</option>
+                        <option value="3">3 Spieler</option>
+                        <option value="4" selected>4 Spieler</option>
+                    </select>
+                    
+                    <div id="player-names">
+                        <input type="text" class="player-name-input" placeholder="Spieler 1" value="Spieler 1">
+                        <input type="text" class="player-name-input" placeholder="Spieler 2" value="Spieler 2">
+                        <input type="text" class="player-name-input" placeholder="Spieler 3" value="Spieler 3">
+                        <input type="text" class="player-name-input" placeholder="Spieler 4" value="Spieler 4">
                     </div>
-                    <div class="player-input">
-                        <input type="text" placeholder="Spieler 2 Name" id="player2" value="Spieler 2">
-                    </div>
+                    
+                    <button id="start-game" class="btn btn-primary">Spiel starten</button>
                 </div>
-                <button id="add-player-btn" class="btn btn-secondary">+ Spieler hinzufügen</button>
-            </div>
-            
-            <button id="start-game-btn" class="btn btn-primary">Spiel starten</button>
-            
-            <div class="rules-section">
-                <button id="show-rules-btn" class="btn btn-link">Spielregeln anzeigen</button>
             </div>
         </div>
 
         <!-- Game Screen -->
         <div id="game-screen" class="screen">
             <div class="game-header">
-                <h2>Zwanzig Ab</h2>
+                <h2>Zwanzig ab</h2>
                 <button id="menu-btn" class="btn btn-small">Menü</button>
             </div>
-            
-            <div class="scoreboard">
-                <div id="scores"></div>
-            </div>
-            
-            <div class="game-info">
-                <div id="current-player"></div>
-                <div id="round-info"></div>
-                <div id="trump-suit"></div>
-            </div>
-            
-            <div class="table-area">
-                <div id="played-cards"></div>
-            </div>
-            
-            <div class="player-hand">
-                <div id="hand-cards"></div>
-            </div>
-            
-            <div class="action-area">
-                <button id="next-round-btn" class="btn btn-primary" style="display: none;">Nächste Runde</button>
-            </div>
-        </div>
 
-        <!-- Rules Modal -->
-        <div id="rules-modal" class="modal">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Spielregeln - Zwanzig Ab</h2>
-                <div class="rules-text">
-                    <h3>Ziel des Spiels</h3>
-                    <p>Jeder Spieler startet mit 20 Punkten. Ziel ist es, nicht auf 0 oder darunter zu kommen.</p>
-                    
-                    <h3>Spielablauf</h3>
-                    <ul>
-                        <li>Das Spiel wird mit einem deutschen Blatt (32 Karten) gespielt</li>
-                        <li>Jeder Spieler erhält 5 Karten pro Runde</li>
-                        <li>Eine Karte wird als Trumpf aufgedeckt</li>
-                        <li>Der Spieler links vom Geber beginnt</li>
-                        <li>Farbe muss bedient werden, wenn möglich</li>
-                        <li>Trumpf sticht Fehlfarben, höhere Karte sticht niedrigere</li>
-                    </ul>
-                    
-                    <h3>Punktevergabe</h3>
-                    <ul>
-                        <li>Kein Stich: +5 Punkte</li>
-                        <li>1 Stich: 0 Punkte</li>
-                        <li>2 Stiche: -1 Punkt</li>
-                        <li>3 Stiche: -2 Punkte</li>
-                        <li>4 Stiche: -3 Punkte</li>
-                        <li>5 Stiche: -4 Punkte</li>
-                    </ul>
-                    
-                    <h3>Spielende</h3>
-                    <p>Wer auf 0 oder darunter kommt, scheidet aus. Der letzte verbleibende Spieler gewinnt.</p>
+            <!-- Scoreboard -->
+            <div id="scoreboard" class="scoreboard"></div>
+
+            <!-- Game Phase Info -->
+            <div id="game-info" class="game-info">
+                <div id="phase-info"></div>
+                <div id="trump-info"></div>
+            </div>
+
+            <!-- Player's Hand -->
+            <div id="player-hand" class="player-hand"></div>
+
+            <!-- Action Area -->
+            <div id="action-area" class="action-area"></div>
+
+            <!-- Trick Area -->
+            <div id="trick-area" class="trick-area"></div>
+
+            <!-- Modal for Trump Selection -->
+            <div id="trump-modal" class="modal">
+                <div class="modal-content">
+                    <h3>Trumpf wählen</h3>
+                    <div id="trump-selection" class="trump-selection">
+                        <button class="trump-btn" data-suit="hearts">♥ Herz</button>
+                        <button class="trump-btn" data-suit="diamonds">♦ Karo</button>
+                        <button class="trump-btn" data-suit="clubs">♣ Kreuz</button>
+                        <button class="trump-btn" data-suit="spades">♠ Pik</button>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Game Over Screen -->
-        <div id="gameover-screen" class="screen">
-            <h1>Spiel beendet!</h1>
-            <div id="winner-announcement"></div>
-            <div id="final-scores"></div>
-            <button id="new-game-btn" class="btn btn-primary">Neues Spiel</button>
-        </div>
     </div>
-    
+
     <script src="game.js"></script>
 </body>
 </html>

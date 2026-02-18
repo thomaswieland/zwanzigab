@@ -1,98 +1,83 @@
-# Zwanzig Ab - Kartenspiel Web App
+# Zwanzig ab - Kartenspiel
 
-Eine mobile-optimierte Web-Anwendung für das klassische deutsche Kartenspiel "Zwanzig Ab" für 2-4 Spieler.
+Eine Web-basierte Implementation des deutschen Kartenspiels "Zwanzig ab" für 2-4 Spieler.
 
 ## Spielregeln
 
-**Ziel des Spiels:** Jeder Spieler startet mit 20 Punkten. Das Ziel ist es, nicht auf 0 oder darunter zu kommen.
+**Zwanzig ab** ist ein traditionelles deutsches Kartenspiel. Jeder Spieler startet mit 20 Punkten und das Ziel ist es, als Erster auf 0 oder darunter zu kommen.
 
 ### Spielablauf
-- Das Spiel wird mit einem deutschen Blatt (32 Karten) gespielt
-- Jeder Spieler erhält 5 Karten pro Runde
-- Eine Karte wird als Trumpf aufgedeckt
-- Der Spieler links vom Geber beginnt
-- Farbe muss bedient werden, wenn möglich
-- Trumpf sticht Fehlfarben, höhere Karte sticht niedrigere
+
+1. **Trumpfwahl**: Der Spieler links vom Geber wählt die Trumpffarbe nach Erhalt von 2 Karten
+2. **Kartentausch**: Jeder Spieler kann bis zu 3 Karten tauschen
+3. **Entscheidung**: Spieler entscheiden ob sie mitspielen oder aussteigen
+4. **Stiche spielen**: Spieler spielen 5 Stiche nach klassischen Stichregeln
 
 ### Punktevergabe
-- Kein Stich: +5 Punkte
-- 1 Stich: 0 Punkte
-- 2 Stiche: -1 Punkt
-- 3 Stiche: -2 Punkte
-- 4 Stiche: -3 Punkte
-- 5 Stiche: -4 Punkte
 
-### Spielende
-Wer auf 0 oder darunter kommt, scheidet aus. Der letzte verbleibende Spieler gewinnt.
+- **-1 Punkt** pro gewonnenem Stich
+- **-5 Punkte** bei allen 5 Stichen
+- **+5 Punkte** wenn mitgespielt aber keinen Stich gewonnen
+- **Doppelte Punkte** wenn Herz Trumpf ist
 
 ## Installation & Nutzung
 
-Die App ist eine reine Client-Side-Anwendung und benötigt keinen Server. Es gibt mehrere Möglichkeiten, sie zu nutzen:
+### Lokal spielen
 
-### Option 1: Lokaler Web Server
+1. Repository klonen oder Dateien herunterladen
+2. `index.html` in einem modernen Webbrowser öffnen
+3. Spielen!
+
+### Mit Python HTTP Server
+
 ```bash
-# Python 3
-python3 -m http.server 8000
-
-# oder mit Python 2
-python -m SimpleHTTPServer 8000
-
-# oder mit Node.js
-npx serve
+python3 -m http.server 8080
 ```
 
-Dann öffne `http://localhost:8000` im Browser.
+Dann im Browser öffnen: `http://localhost:8080`
 
-### Option 2: Direkt im Browser öffnen
-Öffne die `index.html` Datei direkt in deinem Browser (funktioniert bei den meisten modernen Browsern).
+### Mit Node.js HTTP Server
 
-### Option 3: Hosting
-Lade die Dateien auf einen beliebigen Webserver oder Hosting-Service hoch:
-- GitHub Pages
-- Netlify
-- Vercel
-- Oder jeden anderen statischen Hosting-Service
+```bash
+npx http-server
+```
 
-## Features
+## Spielanleitung
 
-✅ **Vollständige Spielmechanik**
-- Deutsches Kartenblatt (32 Karten)
-- Stichlogik mit Trumpf
-- Automatische Punkteberechnung
-- Spieler-Eliminierung
+1. **Spieleranzahl wählen**: 2-4 Spieler
+2. **Spielernamen eingeben** (optional)
+3. **"Spiel starten"** klicken
+4. **Trumpf wird gewählt** (automatisch für KI-Spieler)
+5. **Karten tauschen**: Bis zu 3 Karten auswählen und "Tausch bestätigen"
+6. **Entscheidung treffen**: "Mitspielen" oder "Aussteigen"
+7. **Karten spielen**: Auf Karte klicken wenn Sie an der Reihe sind
+8. **Gewinner**: Erster Spieler der 0 oder weniger Punkte erreicht
 
-✅ **Mobile-First Design**
-- Vollständig responsive
-- Touch-optimiert
-- Funktioniert auf iOS Safari, Chrome, Firefox etc.
-- Unterstützt Hoch- und Querformat
+## Technische Details
 
-✅ **Benutzerfreundlichkeit**
-- Klare Anzeige des aktiven Spielers
-- Visuelles Feedback für spielbare Karten
-- Vollständige deutsche Benutzeroberfläche
-- Spielregeln jederzeit abrufbar
+- **Reine HTML/CSS/JavaScript** - Keine Abhängigkeiten
+- **Mobile-optimiert** - Touch-freundliche Steuerung
+- **KI-Gegner** - 3 automatische Mitspieler
+- **Responsive Design** - Funktioniert auf allen Geräten
 
-## Technologie
+## Dateien
 
-- **HTML5** - Struktur
-- **CSS3** - Styling und Responsive Design
-- **Vanilla JavaScript** - Spiellogik (keine Frameworks benötigt)
+- `index.html` - Hauptseite mit Spielstruktur
+- `styles.css` - Styling und Layout
+- `game.js` - Spiellogik und KI
 
 ## Browser-Kompatibilität
 
-Die App funktioniert in allen modernen Browsern:
-- Chrome/Edge (Desktop & Mobile)
-- Firefox (Desktop & Mobile)
-- Safari (Desktop & Mobile)
-- Opera
-
-## Multiplayer
-
-Die aktuelle Version ist für lokales Spielen (Hot-Seat-Modus) konzipiert - alle Spieler verwenden dasselbe Gerät abwechselnd. 
-
-Für echtes Online-Multiplayer über das Internet wäre eine Server-Komponente mit WebSockets erforderlich (nicht in dieser Version enthalten).
+Funktioniert mit allen modernen Browsern:
+- Chrome/Edge (neueste Versionen)
+- Firefox (neueste Versionen)
+- Safari (neueste Versionen)
+- Mobile Browser (iOS Safari, Chrome Mobile)
 
 ## Lizenz
 
-MIT License - Frei verwendbar für private und kommerzielle Zwecke.
+Dieses Projekt ist open source und kann frei verwendet werden.
+
+## Mitwirken
+
+Beiträge sind willkommen! Bitte erstellen Sie einen Pull Request mit Ihren Änderungen.
