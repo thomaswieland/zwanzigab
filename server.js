@@ -7,7 +7,16 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// Serve static files
+// Block access to sensitive files
+app.use((req, res, next) => {
+    const blockedPaths = ['/package.json', '/package-lock.json', '/server.js', '/.git', '/.gitignore', '/node_modules'];
+    if (blockedPaths.some(path => req.path.startsWith(path))) {
+        return res.status(403).send('Forbidden');
+    }
+    next();
+});
+
+// Serve static files (game files: HTML, CSS, JS client-side code)
 app.use(express.static(__dirname));
 
 // Game rooms storage
