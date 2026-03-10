@@ -124,7 +124,7 @@ body {
 /* Game Screen */
 .game-header {
     background: rgba(255, 255, 255, 0.95);
-    padding: 15px 20px;
+    padding: 8px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -134,23 +134,23 @@ body {
 .game-header h2 {
     margin: 0;
     color: #667eea;
+    font-size: 1.2em;
 }
 
 /* Scoreboard */
 .scoreboard {
-    display: flex;
-    justify-content: space-around;
-    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 10px;
     background: rgba(255, 255, 255, 0.9);
-    margin: 10px;
+    margin: 8px;
     border-radius: 10px;
-    flex-wrap: wrap;
 }
 
 .player-score {
     text-align: center;
-    padding: 10px;
-    min-width: 80px;
+    padding: 6px 4px;
 }
 
 .player-score.active {
@@ -177,12 +177,16 @@ body {
 
 .player-score .player-name {
     font-weight: bold;
-    margin-bottom: 5px;
+    margin-bottom: 2px;
     color: #333;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .player-score .score {
-    font-size: 24px;
+    font-size: 18px;
     color: #667eea;
     font-weight: bold;
 }
@@ -402,13 +406,22 @@ body {
     }
     
     .scoreboard {
-        flex-direction: column;
-        align-items: center;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
+        padding: 6px;
+        margin: 6px;
     }
     
     .player-score {
-        width: 100%;
-        max-width: 200px;
+        padding: 4px 2px;
+    }
+    
+    .player-score .player-name {
+        font-size: 12px;
+    }
+    
+    .player-score .score {
+        font-size: 15px;
     }
 }
 
