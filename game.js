@@ -644,6 +644,28 @@ class GameUI {
         const isMyTurn = this.game.currentPlayerIndex === myIndex;
 
         if (this.game.phase === 'trump' && isMyTurn) {
+            // Show player's cards inside the trump modal
+            const modalCards = document.getElementById('trump-modal-cards');
+            modalCards.innerHTML = '';
+            const label = document.createElement('p');
+            label.style.marginBottom = '10px';
+            label.style.color = '#555';
+            label.textContent = 'Deine Karten:';
+            modalCards.appendChild(label);
+            const cardsRow = document.createElement('div');
+            cardsRow.style.display = 'flex';
+            cardsRow.style.justifyContent = 'center';
+            cardsRow.style.gap = '8px';
+            cardsRow.style.marginBottom = '20px';
+            const myPlayer = this.game.players[myIndex];
+            if (myPlayer && myPlayer.hand) {
+                myPlayer.hand.forEach(card => {
+                    const cardEl = this.createCardElement(card);
+                    cardEl.style.cursor = 'default';
+                    cardsRow.appendChild(cardEl);
+                });
+            }
+            modalCards.appendChild(cardsRow);
             document.getElementById('trump-modal').classList.add('active');
         }
 
@@ -1095,7 +1117,10 @@ class OnlineGameManager {
                 this.ui.onlineManager = this;
                 this.showScreen('game');
             }
-            this.game.applySnapshot(state);
+            // Only peers apply snapshots; host keeps authoritative state
+            if (!this.p2p.isHost) {
+                this.game.applySnapshot(state);
+            }
             this.ui.myPlayerIndex = state.myPlayerIndex;
             this.ui.render();
         };
