@@ -1034,10 +1034,12 @@ class OnlineGameManager {
 
         document.getElementById('join-room-btn').addEventListener('click', () => {
             document.getElementById('join-room-form').style.display = 'block';
+            document.querySelector('.button-group').style.display = 'none';
         });
 
         document.getElementById('cancel-join-btn').addEventListener('click', () => {
             document.getElementById('join-room-form').style.display = 'none';
+            document.querySelector('.button-group').style.display = 'flex';
         });
 
         document.getElementById('join-submit-btn').addEventListener('click', () => {
