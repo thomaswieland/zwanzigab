@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(commit-commands:commit-push-pr)",
+      "Bash(\"/c/Users/Thomas Wieland/git/zwanzigab/README.md\":*)"
+    ]
+  }
+}
