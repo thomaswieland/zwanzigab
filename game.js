@@ -1088,6 +1088,13 @@ class OnlineGameManager {
 
         // Game state updates (received by both host and peers)
         this.p2p.onGameState = (state) => {
+            // First game_state: transition peer to game screen
+            if (!this.ui.isOnlineMode) {
+                this.ui.isOnlineMode = true;
+                this.ui.myPlayerIndex = state.myPlayerIndex;
+                this.ui.onlineManager = this;
+                this.showScreen('game');
+            }
             this.game.applySnapshot(state);
             this.ui.myPlayerIndex = state.myPlayerIndex;
             this.ui.render();
