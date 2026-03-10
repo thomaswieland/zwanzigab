@@ -21,3 +21,7 @@ package-lock.json
 tmp/
 temp/
 .tmp/
+
+# Claude files
+.claude
+.claude/*

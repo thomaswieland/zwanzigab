@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Skill(commit-commands:commit-push-pr)",
-      "Bash(\"/c/Users/Thomas Wieland/git/zwanzigab/README.md\":*)"
+      "Bash(\"/c/Users/Thomas Wieland/git/zwanzigab/README.md\":*)",
+      "Bash(sed:*)",
+      "Bash(python3:*)",
+      "Read(//c/Program Files/GitHub CLI/**)",
+      "Read(//c/Program Files \\(x86\\)/GitHub CLI/**)",
+      "Bash(cmd //c \"where gh\")",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" pr:*)"
     ]
   }
 }
