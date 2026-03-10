@@ -492,7 +492,13 @@ class GameUI {
 
             const scoreDiv = document.createElement('div');
             scoreDiv.className = 'score';
-            scoreDiv.textContent = player.score;
+            const phase = this.game.phase;
+            const tricks = this.game.tricksWon[i] || 0;
+            if ((phase === 'play' || phase === 'roundEnd') && player.isPlaying) {
+                scoreDiv.textContent = player.score + ' (' + tricks + ' St.)';
+            } else {
+                scoreDiv.textContent = player.score;
+            }
 
             div.appendChild(nameDiv);
             div.appendChild(scoreDiv);
@@ -749,11 +755,32 @@ class GameUI {
         }
 
         if (this.game.phase === 'roundEnd') {
-            // Show round summary
+            // Show round summary with scoring breakdown
             const summaryDiv = document.createElement('div');
             summaryDiv.className = 'exchange-info';
-            let summaryText = 'Runde ' + this.game.roundNumber + ' beendet!';
-            summaryDiv.textContent = summaryText;
+            const isHearts = this.game.trump === 'hearts';
+            const multiplierText = isHearts ? ' (Herz = doppelt!)' : '';
+            const titleStrong = document.createElement('strong');
+            titleStrong.textContent = 'Runde ' + this.game.roundNumber + ' beendet!' + multiplierText;
+            summaryDiv.appendChild(titleStrong);
+            summaryDiv.appendChild(document.createElement('br'));
+            summaryDiv.appendChild(document.createElement('br'));
+            this.game.players.forEach((p, idx) => {
+                if (!p.isPlaying) return;
+                const tricks = this.game.tricksWon[idx] || 0;
+                const multiplier = isHearts ? 2 : 1;
+                let change;
+                if (tricks === 0) {
+                    change = '+' + (5 * multiplier);
+                } else if (tricks === 5) {
+                    change = '-' + (5 * multiplier);
+                } else {
+                    change = '-' + (tricks * multiplier);
+                }
+                const line = document.createElement('div');
+                line.textContent = p.name + ': ' + tricks + ' Stiche (' + change + ')';
+                summaryDiv.appendChild(line);
+            });
             actionArea.appendChild(summaryDiv);
 
             const buttonsDiv = document.createElement('div');
