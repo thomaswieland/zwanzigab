@@ -148,6 +148,42 @@ class ZwanzigAbGame {
         this.exchangeCards(playerIndex, cardsToExchange);
     }
 
+    // Auto-confirm mandatory decisions (trump chooser, diamonds)
+    // Returns true if all decisions are now made
+    autoConfirmMandatoryDecisions() {
+        if (this.phase !== 'decide') return false;
+
+        const trumpChooserIndex = (this.dealerIndex + 1) % this.players.length;
+
+        // If diamonds, everyone must play
+        if (this.trump === 'diamonds') {
+            this.players.forEach(p => { p.isPlaying = true; });
+            this._finishDecidePhase();
+            return true;
+        }
+
+        // Trump chooser must play
+        this.players[trumpChooserIndex].isPlaying = true;
+
+        // Auto-skip mandatory players in the turn order
+        while (this.phase === 'decide') {
+            const idx = this.currentPlayerIndex;
+            const isTrumpChooser = idx === trumpChooserIndex;
+
+            if (isTrumpChooser) {
+                // Already set above, advance to next
+                this._advanceDecision();
+            } else if (this.players[idx].isPlaying !== null) {
+                // Already decided, advance
+                this._advanceDecision();
+            } else {
+                // This player has a real choice, stop here
+                break;
+            }
+        }
+        return this.phase !== 'decide';
+    }
+
     playerDecision(playerIndex, isPlaying) {
         const player = this.players[playerIndex];
         player.isPlaying = isPlaying;
@@ -163,34 +199,48 @@ class ZwanzigAbGame {
             player.isPlaying = true;
         }
 
+        this._advanceDecision();
+    }
+
+    _advanceDecision() {
+        const trumpChooserIndex = (this.dealerIndex + 1) % this.players.length;
+
         // Check if all players have decided
         const allDecided = this.players.every((p, i) => {
-            const trumpChooser = i === trumpChooserIndex;
-            const mustPlay = trumpChooser || this.trump === 'diamonds';
+            const mustPlay = i === trumpChooserIndex || this.trump === 'diamonds';
             return mustPlay || p.isPlaying !== null;
         });
 
         if (allDecided) {
-            // Check if only trump chooser is playing
-            const playingPlayers = this.players.filter(p => p.isPlaying);
-            if (playingPlayers.length === 1) {
-                // Trump chooser wins all tricks automatically
-                this.tricksWon[trumpChooserIndex] = 5;
-                this.endRound();
-                return;
-            }
-
-            // Start playing tricks
-            this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.length;
-            // Skip non-playing players
-            while (!this.players[this.currentPlayerIndex].isPlaying) {
-                this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
-            }
-            this.phase = 'play';
-            this.currentTrick = [];
+            this._finishDecidePhase();
         } else {
             this.nextPlayer();
+            // Skip players who already decided (mandatory ones)
+            const trumpChooser = (this.dealerIndex + 1) % this.players.length;
+            while (this.currentPlayerIndex === trumpChooser && this.players[this.currentPlayerIndex].isPlaying !== null) {
+                this.nextPlayer();
+            }
         }
+    }
+
+    _finishDecidePhase() {
+        const trumpChooserIndex = (this.dealerIndex + 1) % this.players.length;
+        const playingPlayers = this.players.filter(p => p.isPlaying);
+
+        if (playingPlayers.length === 1) {
+            // Trump chooser wins all tricks automatically
+            this.tricksWon[trumpChooserIndex] = 5;
+            this.endRound();
+            return;
+        }
+
+        // Start playing tricks
+        this.currentPlayerIndex = (this.dealerIndex + 1) % this.players.length;
+        while (!this.players[this.currentPlayerIndex].isPlaying) {
+            this.currentPlayerIndex = (this.currentPlayerIndex + 1) % this.players.length;
+        }
+        this.phase = 'play';
+        this.currentTrick = [];
     }
 
     playCard(playerIndex, card) {
@@ -694,6 +744,10 @@ class GameUI {
                 } else {
                     const cards = this.selectedCards.map(c => c.card);
                     this.game.exchangeCards(myIndex, cards);
+                    // If exchange phase ended, auto-confirm mandatory decisions
+                    if (this.game.phase === 'decide') {
+                        this.game.autoConfirmMandatoryDecisions();
+                    }
                     setTimeout(() => this.autoExchangeOtherPlayers(), 500);
                     this.render();
                 }
@@ -705,15 +759,12 @@ class GameUI {
         }
 
         if (this.game.phase === 'decide' && isMyTurn) {
-            const trumpChooserIndex = (this.game.dealerIndex + 1) % this.game.players.length;
-            const mustPlay = myIndex === trumpChooserIndex || this.game.trump === 'diamonds';
-
             const buttonsDiv = document.createElement('div');
             buttonsDiv.className = 'action-buttons';
 
             const playBtn = document.createElement('button');
             playBtn.className = 'btn btn-success';
-            playBtn.textContent = mustPlay ? 'Weiter (Pflicht)' : 'Mitspielen';
+            playBtn.textContent = 'Mitspielen';
             playBtn.addEventListener('click', () => {
                 if (this.isOnlineMode) {
                     this.onlineManager.sendAction('action:player_decision', { isPlaying: true });
@@ -725,7 +776,7 @@ class GameUI {
             });
             buttonsDiv.appendChild(playBtn);
 
-            if (!mustPlay) {
+            {
                 const passBtn = document.createElement('button');
                 passBtn.className = 'btn btn-secondary';
                 passBtn.textContent = 'Aussteigen';
@@ -742,6 +793,16 @@ class GameUI {
             }
 
             actionArea.appendChild(buttonsDiv);
+        }
+
+        if (this.game.phase === 'decide' && !isMyTurn && this.isOnlineMode) {
+            const waitInfo = document.createElement('div');
+            waitInfo.className = 'exchange-info';
+            const currentName = this.game.players[this.game.currentPlayerIndex]
+                ? this.game.players[this.game.currentPlayerIndex].name
+                : '...';
+            waitInfo.textContent = currentName + ' entscheidet...';
+            actionArea.appendChild(waitInfo);
         }
 
         if (this.game.phase === 'play' && !isMyTurn && this.isOnlineMode) {
@@ -934,8 +995,13 @@ class GameUI {
         if (this.isOnlineMode) return;
 
         if (this.game.phase === 'decide') {
-            setTimeout(() => this.autoDecideOtherPlayers(), 500);
+            this.game.autoConfirmMandatoryDecisions();
             this.render();
+            if (this.game.phase === 'decide') {
+                setTimeout(() => this.autoDecideOtherPlayers(), 500);
+            } else if (this.game.phase === 'play') {
+                setTimeout(() => this.autoPlayOtherPlayers(), 500);
+            }
             return;
         }
 
@@ -969,13 +1035,20 @@ class GameUI {
         }
 
         if (this.game.currentPlayerIndex !== 0) {
-            const trumpChooserIndex = (this.game.dealerIndex + 1) % this.game.players.length;
-            const mustPlay = this.game.currentPlayerIndex === trumpChooserIndex || this.game.trump === 'diamonds';
-            const decision = mustPlay ? true : Math.random() > 0.3;
+            const decision = Math.random() > 0.3;
 
             setTimeout(() => {
                 this.game.playerDecision(this.game.currentPlayerIndex, decision);
-                setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                // Auto-confirm any mandatory decisions that follow
+                if (this.game.phase === 'decide') {
+                    this.game.autoConfirmMandatoryDecisions();
+                }
+                this.render();
+                if (this.game.phase === 'decide') {
+                    setTimeout(() => this.autoDecideOtherPlayers(), 500);
+                } else if (this.game.phase === 'play') {
+                    setTimeout(() => this.autoPlayOtherPlayers(), 500);
+                }
             }, 500);
         } else {
             this.render();
@@ -1232,6 +1305,10 @@ class OnlineGameManager {
         }
 
         this.game.exchangeCardsByIndices(playerIndex, indices);
+        // After exchange phase ends, auto-confirm mandatory decisions
+        if (this.game.phase === 'decide') {
+            this.game.autoConfirmMandatoryDecisions();
+        }
         this.p2p.broadcastGameState(this.game);
     }
 
@@ -1246,6 +1323,10 @@ class OnlineGameManager {
         }
 
         this.game.playerDecision(playerIndex, !!payload.isPlaying);
+        // Auto-confirm any remaining mandatory decisions
+        if (this.game.phase === 'decide') {
+            this.game.autoConfirmMandatoryDecisions();
+        }
         this.p2p.broadcastGameState(this.game);
     }
 
